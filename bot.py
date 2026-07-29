@@ -63,8 +63,10 @@ async def on_message(message):
     # Only reply in lobby channels
     channel_name = message.channel.name.lower()
     if "lobby" in channel_name:
+        # Check if the message author is NOT staff
         has_staff_role = any(role.id in STAFF_ROLES for role in message.author.roles)
         if not has_staff_role and message.author.id not in registered_users:
+            # Create a "Yes" button – staff will click this to register the player
             view = discord.ui.View()
             button = discord.ui.Button(label='Yes', style=discord.ButtonStyle.green, custom_id='add_user')
             view.add_item(button)
@@ -73,25 +75,48 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ============================================
-# BUTTON HANDLER
+# BUTTON HANDLER – Staff clicks to register the player
 # ============================================
 
 @bot.event
 async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.component:
         if interaction.data['custom_id'] == 'add_user':
-            if interaction.user.id in registered_users:
-                await interaction.response.send_message("You're already registered!", ephemeral=True)
+            # Only staff can click this button
+            clicker_has_staff = any(role.id in STAFF_ROLES for role in interaction.user.roles)
+            if not clicker_has_staff:
+                await interaction.response.send_message("❌ Only staff can register players.", ephemeral=True)
                 return
 
-            has_staff_role = any(role.id in STAFF_ROLES for role in interaction.user.roles)
-            if has_staff_role:
-                await interaction.response.send_message("You're staff! You don't need to register.", ephemeral=True)
+            # Get the original message that the bot replied to
+            if not interaction.message.reference:
+                await interaction.response.send_message("❌ Could not find the original message.", ephemeral=True)
                 return
 
+            # Fetch the original message from the reference
+            original_msg_id = interaction.message.reference.message_id
+            try:
+                original_msg = await interaction.channel.fetch_message(original_msg_id)
+            except:
+                await interaction.response.send_message("❌ Could not fetch the original message.", ephemeral=True)
+                return
+
+            player = original_msg.author  # This is the player who typed
+
+            # Check if the player is already registered
+            if player.id in registered_users:
+                await interaction.response.send_message(f"❌ {player.mention} is already registered.", ephemeral=True)
+                return
+
+            # Check if player is staff (shouldn't happen, but just in case)
+            if any(role.id in STAFF_ROLES for role in player.roles):
+                await interaction.response.send_message("❌ Cannot register a staff member.", ephemeral=True)
+                return
+
+            # Register the player
             channel_name = interaction.channel.name
-            registered_users[interaction.user.id] = {
-                'registered_by': interaction.user.id,
+            registered_users[player.id] = {
+                'registered_by': interaction.user.id,  # staff who clicked
                 'channel': interaction.channel.id,
                 'channel_name': channel_name,
                 'timestamp': discord.utils.utcnow()
@@ -112,13 +137,13 @@ async def on_interaction(interaction):
 
             if lobby_role:
                 try:
-                    await interaction.user.add_roles(lobby_role)
+                    await player.add_roles(lobby_role)
                 except:
                     pass
 
-            # Simple embed for registration
+            # Send confirmation embed – shows player registered by staff
             embed = discord.Embed(
-                description=f"{interaction.user.mention} has been registered",
+                description=f"{player.mention} has been registered by {interaction.user.mention}",
                 color=discord.Color.green()
             )
             await interaction.response.send_message(embed=embed)
@@ -158,7 +183,7 @@ async def unmute_channel(ctx):
 
 @bot.command(name='add')
 async def add_user(ctx, member: discord.Member = None):
-    # Check if user has ANY staff role
+    # Check if user has staff role
     has_staff_role = any(role.id in STAFF_ROLES for role in ctx.author.roles)
     if not has_staff_role:
         await ctx.send("❌ You don't have permission to use this command!")
@@ -204,7 +229,6 @@ async def add_user(ctx, member: discord.Member = None):
         except:
             pass
 
-    # Simple embed - just shows who was registered by whom
     embed = discord.Embed(
         description=f"{member.mention} has been registered by {ctx.author.mention}",
         color=discord.Color.green()
