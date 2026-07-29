@@ -60,7 +60,7 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # === ONLY REPLY IN LOBBY CHANNELS ===
+    # Only reply in lobby channels
     channel_name = message.channel.name.lower()
     if "lobby" in channel_name:
         has_staff_role = any(role.id in STAFF_ROLES for role in message.author.roles)
@@ -113,22 +113,15 @@ async def on_interaction(interaction):
             if lobby_role:
                 try:
                     await interaction.user.add_roles(lobby_role)
-                    role_msg = f"Assigned role: {lobby_role.name}"
                 except:
-                    role_msg = "Could not assign lobby role"
-            else:
-                role_msg = "No lobby role found"
+                    pass
 
+            # Simple embed for registration
             embed = discord.Embed(
-                title="User Registered",
                 description=f"{interaction.user.mention} has been registered",
                 color=discord.Color.green()
             )
-            embed.add_field(name="Channel", value=interaction.channel.mention, inline=True)
-            embed.add_field(name="Role", value=role_msg, inline=True)
-
             await interaction.response.send_message(embed=embed)
-            await interaction.channel.send(f"🎉 {interaction.user.mention} has been registered!")
 
 # ============================================
 # MUTE COMMAND
@@ -160,14 +153,15 @@ async def unmute_channel(ctx):
         await ctx.send(f"Error: {e}")
 
 # ============================================
-# ADD USER COMMAND (Staff only)
+# ADD USER COMMAND (STAFF ONLY)
 # ============================================
 
 @bot.command(name='add')
 async def add_user(ctx, member: discord.Member = None):
+    # Check if user has ANY staff role
     has_staff_role = any(role.id in STAFF_ROLES for role in ctx.author.roles)
     if not has_staff_role:
-        await ctx.send("❌ No permission")
+        await ctx.send("❌ You don't have permission to use this command!")
         return
 
     if not member:
@@ -182,6 +176,7 @@ async def add_user(ctx, member: discord.Member = None):
         await ctx.send(f"❌ {member.mention} is already registered")
         return
 
+    # Register the user
     channel_name = ctx.channel.name
     registered_users[member.id] = {
         'registered_by': ctx.author.id,
@@ -190,7 +185,7 @@ async def add_user(ctx, member: discord.Member = None):
         'timestamp': discord.utils.utcnow()
     }
 
-    # Lobby role assignment
+    # Check for lobby role
     lobby_role = None
     patterns = [r'lobby[\s\-]?(\d+)', r'lobby_(\d+)', r'Lobby[\s\-]?(\d+)', r'Lobby_(\d+)']
     for pattern in patterns:
@@ -206,32 +201,25 @@ async def add_user(ctx, member: discord.Member = None):
     if lobby_role:
         try:
             await member.add_roles(lobby_role)
-            role_msg = f"Assigned: {lobby_role.name}"
         except:
-            role_msg = "Could not assign role"
-    else:
-        role_msg = "No lobby role found"
+            pass
 
+    # Simple embed - just shows who was registered by whom
     embed = discord.Embed(
-        title="User Registered",
-        description=f"{member.mention} has been joined by {ctx.author.mention}",
+        description=f"{member.mention} has been registered by {ctx.author.mention}",
         color=discord.Color.green()
     )
-    embed.add_field(name="Channel", value=ctx.channel.mention, inline=True)
-    embed.add_field(name="Role", value=role_msg, inline=True)
-
     await ctx.send(embed=embed)
-    await ctx.send(f"🎉 {member.mention} has been registered by {ctx.author.mention}!")
 
 # ============================================
-# REMOVE USER COMMAND
+# REMOVE USER COMMAND (STAFF ONLY)
 # ============================================
 
 @bot.command(name='remove')
 async def remove_user(ctx, member: discord.Member = None):
     has_staff_role = any(role.id in STAFF_ROLES for role in ctx.author.roles)
     if not has_staff_role:
-        await ctx.send("❌ No permission")
+        await ctx.send("❌ You don't have permission to use this command!")
         return
 
     if not member:
@@ -248,17 +236,13 @@ async def remove_user(ctx, member: discord.Member = None):
     del registered_users[member.id]
 
     embed = discord.Embed(
-        title="User Removed",
         description=f"{member.mention} has been removed by {ctx.author.mention}",
         color=discord.Color.orange()
     )
-    embed.add_field(name="Registered by", value=registered_by.mention if registered_by else "Unknown", inline=True)
-    embed.add_field(name="Channel", value=f"<#{user_data['channel']}>", inline=True)
-
     await ctx.send(embed=embed)
 
 # ============================================
-# LIST USERS
+# LIST USERS COMMAND
 # ============================================
 
 @bot.command(name='list')
@@ -286,7 +270,7 @@ async def list_users(ctx):
     await ctx.send(embed=embed)
 
 # ============================================
-# HELP
+# HELP COMMAND
 # ============================================
 
 @bot.command(name='help')
@@ -324,7 +308,7 @@ async def on_command_error(ctx, error):
         await ctx.send(f"❌ Error: {error}")
 
 # ============================================
-# KEEP‑ALIVE SERVER
+# KEEP-ALIVE SERVER
 # ============================================
 
 app = Flask('')
@@ -343,7 +327,7 @@ def keep_alive():
     t.start()
 
 # ============================================
-# RUN
+# RUN BOT
 # ============================================
 
 if __name__ == "__main__":
