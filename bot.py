@@ -95,7 +95,7 @@ async def on_interaction(interaction):
             channel_name = interaction.channel.name
             
             registered_users[interaction.user.id] = {
-                'registered_by': interaction.user.id,  # Self-registered
+                'registered_by': interaction.user.id,
                 'channel': interaction.channel.id,
                 'channel_name': channel_name,
                 'timestamp': discord.utils.utcnow()
@@ -146,7 +146,7 @@ async def mute_channel(ctx):
     try:
         everyone_role = ctx.guild.default_role
         await ctx.channel.set_permissions(everyone_role, send_messages=False)
-        await ctx.send("🔇 This Channel is Muted")
+        await ctx.send("## ❗ This Channel is Muted ❗\n### A Staff will open this channel when fills are needed")
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
@@ -163,7 +163,7 @@ async def unmute_channel(ctx):
         await ctx.channel.set_permissions(everyone_role, send_messages=True)
         
         role_mentions = ' '.join([f'<@&{role_id}>' for role_id in MUTED_ROLES])
-        await ctx.send(f"🔊 This Channel is Unmuted\n\n{role_mentions}")
+        await ctx.send(f"## ❗ This Channel is Unmuted ❗\n### Type to fill\n\n{role_mentions}")
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
@@ -258,8 +258,21 @@ async def remove_user(ctx, member: discord.Member = None):
         await ctx.send(f"❌ {member.mention} is not registered")
         return
     
+    # Get user data before removing
+    user_data = registered_users[member.id]
+    registered_by = bot.get_user(user_data['registered_by'])
+    
     del registered_users[member.id]
-    await ctx.send(f"🗑️ {member.mention} has been removed by {ctx.author.mention}")
+    
+    embed = discord.Embed(
+        title="User Removed",
+        description=f"{member.mention} has been removed by {ctx.author.mention}",
+        color=discord.Color.orange()
+    )
+    embed.add_field(name="Registered by", value=registered_by.mention if registered_by else "Unknown", inline=True)
+    embed.add_field(name="Channel", value=f"<#{user_data['channel']}>", inline=True)
+    
+    await ctx.send(embed=embed)
 
 # ============================================
 # LIST USERS COMMAND
