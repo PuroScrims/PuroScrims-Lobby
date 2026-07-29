@@ -42,6 +42,17 @@ STAFF_ROLES = [
 ]
 
 # ============================================
+# EXCLUDED CATEGORIES (bot will NOT reply here)
+# ============================================
+EXCLUDED_CATEGORIES = [
+    1531866040483578019,
+    1531877047163551874,
+    1531875786263363665,
+    1531873269198749856,
+    1531866246881214656
+]
+
+# ============================================
 # STORAGE
 # ============================================
 registered_users = {}
@@ -60,17 +71,18 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Only reply in lobby channels
-    channel_name = message.channel.name.lower()
-    if "lobby" in channel_name:
-        # Check if the message author is NOT staff
-        has_staff_role = any(role.id in STAFF_ROLES for role in message.author.roles)
-        if not has_staff_role and message.author.id not in registered_users:
-            # Create a "Yes" button – staff will click this to register the player
-            view = discord.ui.View()
-            button = discord.ui.Button(label='Yes', style=discord.ButtonStyle.green, custom_id='add_user')
-            view.add_item(button)
-            await message.reply(f"Would you like to add? {message.author.mention}", view=view)
+    # Only reply in channels with "lobby" in the name AND not in excluded categories
+    if "lobby" in message.channel.name.lower():
+        # Check if channel belongs to an excluded category
+        if message.channel.category_id not in EXCLUDED_CATEGORIES:
+            # Check if the message author is NOT staff
+            has_staff_role = any(role.id in STAFF_ROLES for role in message.author.roles)
+            if not has_staff_role:
+                # Reply EVERY time, regardless of registration status
+                view = discord.ui.View()
+                button = discord.ui.Button(label='Yes', style=discord.ButtonStyle.green, custom_id='add_user')
+                view.add_item(button)
+                await message.reply(f"Would you like to add? {message.author.mention}", view=view)
 
     await bot.process_commands(message)
 
@@ -183,7 +195,6 @@ async def unmute_channel(ctx):
 
 @bot.command(name='add')
 async def add_user(ctx, member: discord.Member = None):
-    # Check if user has staff role
     has_staff_role = any(role.id in STAFF_ROLES for role in ctx.author.roles)
     if not has_staff_role:
         await ctx.send("❌ You don't have permission to use this command!")
@@ -201,7 +212,6 @@ async def add_user(ctx, member: discord.Member = None):
         await ctx.send(f"❌ {member.mention} is already registered")
         return
 
-    # Register the user
     channel_name = ctx.channel.name
     registered_users[member.id] = {
         'registered_by': ctx.author.id,
@@ -210,7 +220,7 @@ async def add_user(ctx, member: discord.Member = None):
         'timestamp': discord.utils.utcnow()
     }
 
-    # Check for lobby role
+    # Assign lobby role
     lobby_role = None
     patterns = [r'lobby[\s\-]?(\d+)', r'lobby_(\d+)', r'Lobby[\s\-]?(\d+)', r'Lobby_(\d+)']
     for pattern in patterns:
