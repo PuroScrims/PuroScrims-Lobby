@@ -18,7 +18,7 @@ bot.remove_command('help')
 # ROLE IDS
 # ============================================
 
-# Roles to ping when channel is muted
+# Roles to ping when channel is UNMUTED (fixed)
 MUTED_ROLES = [
     1531855127227535390,
     1531855163638288474,
@@ -81,49 +81,65 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ============================================
-# MUTE/UNMUTE COMMANDS
+# MUTE COMMAND - Sets slowmode to 1 hour
 # ============================================
 
 @bot.command(name='mf')
 @commands.has_permissions(manage_channels=True)
 async def mute_channel(ctx):
-    """Mute the channel - Staff only"""
+    """Mute the channel by setting slowmode to 1 hour"""
     channel = ctx.channel
     
-    # Set slowmode to 1 hour (3600 seconds) as a form of muting
-    await channel.edit(slowmode_delay=3600)
-    
-    # Create mention string for all muted roles
-    role_mentions = ' '.join([f'<@&{role_id}>' for role_id in MUTED_ROLES])
-    
-    embed = discord.Embed(
-        title="🔇 This Channel is Muted",
-        description=f"**A Staff will open this channel when fills are needed**\n\n{role_mentions}",
-        color=discord.Color.red()
-    )
-    embed.set_footer(text=f"Muted by {ctx.author.name}")
-    embed.timestamp = discord.utils.utcnow()
-    
-    await ctx.send(embed=embed)
+    # Set slowmode to 1 hour (3600 seconds) to effectively mute the channel
+    try:
+        await channel.edit(slowmode_delay=3600)
+        
+        embed = discord.Embed(
+            title="🔇 This Channel is Muted",
+            description="**A Staff will open this channel when fills are needed**",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text=f"Muted by {ctx.author.name}")
+        embed.timestamp = discord.utils.utcnow()
+        
+        await ctx.send(embed=embed)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have permission to edit this channel!")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to mute channel: {str(e)}")
+
+# ============================================
+# UNMUTE COMMAND - Removes slowmode AND tags roles
+# ============================================
 
 @bot.command(name='uf')
 @commands.has_permissions(manage_channels=True)
 async def unmute_channel(ctx):
-    """Unmute the channel - Staff only"""
+    """Unmute the channel and tag all muted roles"""
     channel = ctx.channel
     
     # Remove slowmode
-    await channel.edit(slowmode_delay=0)
-    
-    embed = discord.Embed(
-        title="🔊 This Channel is Unmuted",
-        description="**Type to fill**",
-        color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Unmuted by {ctx.author.name}")
-    embed.timestamp = discord.utils.utcnow()
-    
-    await ctx.send(embed=embed)
+    try:
+        await channel.edit(slowmode_delay=0)
+        
+        # Create mention string for all muted roles (these get tagged when unmuted)
+        role_mentions = ' '.join([f'<@&{role_id}>' for role_id in MUTED_ROLES])
+        
+        embed = discord.Embed(
+            title="🔊 This Channel is Unmuted",
+            description=f"**Type to fill**\n\n{role_mentions}",
+            color=discord.Color.green()
+        )
+        embed.set_footer(text=f"Unmuted by {ctx.author.name}")
+        embed.timestamp = discord.utils.utcnow()
+        
+        await ctx.send(embed=embed)
+        
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have permission to edit this channel!")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to unmute channel: {str(e)}")
 
 # ============================================
 # ADD USER COMMAND
@@ -355,7 +371,7 @@ async def custom_help(ctx):
     
     embed.add_field(
         name="📌 Mute/Unmute",
-        value="`*mf` - Mute current channel\n`*uf` - Unmute current channel",
+        value="`*mf` - Mute current channel (sets slowmode)\n`*uf` - Unmute current channel & tag roles",
         inline=False
     )
     
