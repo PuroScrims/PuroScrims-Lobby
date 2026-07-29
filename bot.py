@@ -163,7 +163,7 @@ async def unmute_channel(ctx):
         await ctx.channel.set_permissions(everyone_role, send_messages=True)
         
         role_mentions = ' '.join([f'<@&{role_id}>' for role_id in MUTED_ROLES])
-        await ctx.send(f"## ❗ This Channel is Unmuted ❗\n### Type to fill\n\n{role_mentions}")
+        await ctx.send(f"## 🟢 This Channel is Unmuted\n### Type to fill\n\n{role_mentions}")
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
