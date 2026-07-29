@@ -42,7 +42,7 @@ STAFF_ROLES = [
 ]
 
 # ============================================
-# EXCLUDED CATEGORIES (bot will NOT reply here)
+# EXCLUDED CATEGORIES (bot will NOT work here)
 # ============================================
 EXCLUDED_CATEGORIES = [
     1531866040483578019,
@@ -73,12 +73,9 @@ async def on_message(message):
 
     # Only reply in channels with "lobby" in the name AND not in excluded categories
     if "lobby" in message.channel.name.lower():
-        # Check if channel belongs to an excluded category
         if message.channel.category_id not in EXCLUDED_CATEGORIES:
-            # Check if the message author is NOT staff
             has_staff_role = any(role.id in STAFF_ROLES for role in message.author.roles)
             if not has_staff_role:
-                # Reply EVERY time, regardless of registration status
                 view = discord.ui.View()
                 button = discord.ui.Button(label='Yes', style=discord.ButtonStyle.green, custom_id='add_user')
                 view.add_item(button)
@@ -94,18 +91,15 @@ async def on_message(message):
 async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.component:
         if interaction.data['custom_id'] == 'add_user':
-            # Only staff can click this button
             clicker_has_staff = any(role.id in STAFF_ROLES for role in interaction.user.roles)
             if not clicker_has_staff:
                 await interaction.response.send_message("❌ Only staff can register players.", ephemeral=True)
                 return
 
-            # Get the original message that the bot replied to
             if not interaction.message.reference:
                 await interaction.response.send_message("❌ Could not find the original message.", ephemeral=True)
                 return
 
-            # Fetch the original message from the reference
             original_msg_id = interaction.message.reference.message_id
             try:
                 original_msg = await interaction.channel.fetch_message(original_msg_id)
@@ -113,28 +107,24 @@ async def on_interaction(interaction):
                 await interaction.response.send_message("❌ Could not fetch the original message.", ephemeral=True)
                 return
 
-            player = original_msg.author  # This is the player who typed
+            player = original_msg.author
 
-            # Check if the player is already registered
             if player.id in registered_users:
                 await interaction.response.send_message(f"❌ {player.mention} is already registered.", ephemeral=True)
                 return
 
-            # Check if player is staff (shouldn't happen, but just in case)
             if any(role.id in STAFF_ROLES for role in player.roles):
                 await interaction.response.send_message("❌ Cannot register a staff member.", ephemeral=True)
                 return
 
-            # Register the player
             channel_name = interaction.channel.name
             registered_users[player.id] = {
-                'registered_by': interaction.user.id,  # staff who clicked
+                'registered_by': interaction.user.id,
                 'channel': interaction.channel.id,
                 'channel_name': channel_name,
                 'timestamp': discord.utils.utcnow()
             }
 
-            # Assign lobby role if found
             lobby_role = None
             patterns = [r'lobby[\s\-]?(\d+)', r'lobby_(\d+)', r'Lobby[\s\-]?(\d+)', r'Lobby_(\d+)']
             for pattern in patterns:
@@ -153,7 +143,6 @@ async def on_interaction(interaction):
                 except:
                     pass
 
-            # Send confirmation embed – shows player registered by staff
             embed = discord.Embed(
                 description=f"{player.mention} has been registered by {interaction.user.mention}",
                 color=discord.Color.green()
@@ -161,12 +150,17 @@ async def on_interaction(interaction):
             await interaction.response.send_message(embed=embed)
 
 # ============================================
-# MUTE COMMAND
+# MUTE COMMAND – blocked in excluded categories
 # ============================================
 
 @bot.command(name='mf')
 @commands.has_permissions(manage_channels=True)
 async def mute_channel(ctx):
+    # Block if channel is in an excluded category
+    if ctx.channel.category_id in EXCLUDED_CATEGORIES:
+        await ctx.send("❌ This command is not allowed in this category.")
+        return
+
     try:
         everyone = ctx.guild.default_role
         await ctx.channel.set_permissions(everyone, send_messages=False)
@@ -175,12 +169,17 @@ async def mute_channel(ctx):
         await ctx.send(f"Error: {e}")
 
 # ============================================
-# UNMUTE COMMAND
+# UNMUTE COMMAND – blocked in excluded categories
 # ============================================
 
 @bot.command(name='uf')
 @commands.has_permissions(manage_channels=True)
 async def unmute_channel(ctx):
+    # Block if channel is in an excluded category
+    if ctx.channel.category_id in EXCLUDED_CATEGORIES:
+        await ctx.send("❌ This command is not allowed in this category.")
+        return
+
     try:
         everyone = ctx.guild.default_role
         await ctx.channel.set_permissions(everyone, send_messages=True)
@@ -220,7 +219,6 @@ async def add_user(ctx, member: discord.Member = None):
         'timestamp': discord.utils.utcnow()
     }
 
-    # Assign lobby role
     lobby_role = None
     patterns = [r'lobby[\s\-]?(\d+)', r'lobby_(\d+)', r'Lobby[\s\-]?(\d+)', r'Lobby_(\d+)']
     for pattern in patterns:
