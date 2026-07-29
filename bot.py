@@ -11,6 +11,9 @@ from threading import Thread
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='*', intents=intents)
 
+# Remove default help command
+bot.remove_command('help')
+
 # ============================================
 # ROLE IDS
 # ============================================
@@ -375,6 +378,36 @@ async def custom_help(ctx):
     )
     
     embed.set_footer(text="Bot is ready for use!")
+    
+    await ctx.send(embed=embed)
+
+# ============================================
+# STAFF INFO COMMAND
+# ============================================
+
+@bot.command(name='staff')
+async def show_staff(ctx):
+    """Show all staff roles"""
+    
+    embed = discord.Embed(
+        title="👔 Staff Roles",
+        description="Users with these roles can register others:",
+        color=discord.Color.gold()
+    )
+    
+    role_mentions = []
+    for role_id in STAFF_ROLES:
+        role = ctx.guild.get_role(role_id)
+        if role:
+            role_mentions.append(role.mention)
+        else:
+            role_mentions.append(f"Unknown Role ({role_id})")
+    
+    embed.add_field(
+        name="Staff Roles",
+        value="\n".join(role_mentions),
+        inline=False
+    )
     
     await ctx.send(embed=embed)
 
